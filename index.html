@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Gas-Sparplan 2026/27: Maßnahmen, wöchentliche Ziel-Zählerstände und eigene Ablesungen mit Excel-Export.">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Gas-Sparplan 2026/27</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Layout: one calm column; meter-style hero, then plan → chart → weekly log. */
+:root{
+  --bg:#f3f6f9; --surface:#ffffff; --ink:#15202c; --muted:#5b6977; --line:#d8dfe7; --line-soft:#e8edf2;
+  --flame:#1f5fd1; --flame-soft:#e4ecfb; --flame-ink:#ffffff;
+  --good:#18794a; --good-soft:#e0f2e8; --warn:#9a5a00; --warn-soft:#fbefd8; --bad:#b42318; --bad-soft:#fbe3e0;
+  --meter:#121a24; --meter-digit:#f3f6f9; --meter-red:#d93a2e; --grey-line:#98a4b1;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e141b; --surface:#16202a; --ink:#e5ebf1; --muted:#95a3b2; --line:#2a3645; --line-soft:#212c38;
+  --flame:#6f9ff6; --flame-soft:#1b2a44; --flame-ink:#0e141b;
+  --good:#52c48a; --good-soft:#15301f; --warn:#e2a64b; --warn-soft:#33270f; --bad:#f2786c; --bad-soft:#3a1a17;
+  --meter:#070b10; --meter-digit:#e9eef3; --meter-red:#ef5a4e; --grey-line:#6e7c8b; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0e141b; --surface:#16202a; --ink:#e5ebf1; --muted:#95a3b2; --line:#2a3645; --line-soft:#212c38;
+  --flame:#6f9ff6; --flame-soft:#1b2a44; --flame-ink:#0e141b;
+  --good:#52c48a; --good-soft:#15301f; --warn:#e2a64b; --warn-soft:#33270f; --bad:#f2786c; --bad-soft:#3a1a17;
+  --meter:#070b10; --meter-digit:#e9eef3; --meter-red:#ef5a4e; --grey-line:#6e7c8b; color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px;display:grid;gap:40px}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:.01em;line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.2rem,5vw,3.2rem)}
+h2{font-size:1.9rem}
+h3{font-size:1.25rem}
+p{margin:0}
+.eyebrow{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.lead{color:var(--muted);max-width:65ch}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+a{color:var(--flame)}
+
+/* Hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px;align-items:end}
+.hero-text{display:grid;gap:12px;min-width:0}
+.meter-card{background:var(--meter);color:var(--meter-digit);border-radius:14px;padding:20px 22px;display:grid;gap:14px;min-width:0}
+.meter-card .eyebrow{color:#a9b6c3}
+.meter-row{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.digits{display:flex;gap:4px}
+.digit{font-family:var(--f-mono);font-weight:600;font-size:clamp(1.9rem,6vw,2.6rem);line-height:1;width:1.15em;padding:.18em 0;text-align:center;background:#000;border:1px solid #2d3946;border-radius:4px;color:var(--meter-digit);box-shadow:inset 0 6px 8px rgba(255,255,255,.06),inset 0 -6px 8px rgba(0,0,0,.5)}
+.unit{font-family:var(--f-mono);color:var(--meter-red);font-weight:600;font-size:1.1rem;padding-bottom:.35em}
+.meter-sub{display:flex;gap:18px;flex-wrap:wrap;font-size:.92rem;color:#c3ccd6}
+.meter-sub b{font-family:var(--f-mono);font-weight:500;color:var(--meter-digit)}
+
+/* KPI row */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:4px;align-content:start;min-width:0}
+.kpi .label{font-size:.82rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.kpi .big{font-family:var(--f-display);font-size:2rem;font-weight:600;line-height:1.05}
+.kpi .small{font-size:.92rem;color:var(--muted)}
+.kpi.accent{background:var(--flame-soft);border-color:transparent}
+.kpi.accent .big{color:var(--flame)}
+
+section{display:grid;gap:16px;min-width:0}
+.sec-head{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+
+/* Measures */
+.groups{display:grid;gap:22px}
+.group{display:grid;gap:8px}
+.group-title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.group-title span{color:var(--muted);font-size:.92rem}
+.mlist{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.m{display:grid;grid-template-columns:28px minmax(0,1fr) 215px;gap:14px;padding:14px 16px;border-top:1px solid var(--line-soft);align-items:start}
+.m:first-child{border-top:0}
+.m input[type=checkbox]{width:20px;height:20px;margin:2px 0 0;accent-color:var(--flame);cursor:pointer}
+.m label{cursor:pointer;display:grid;gap:4px;min-width:0}
+.m .t{font-weight:700}
+.m .how{color:var(--muted);font-size:.95rem}
+.m .meta{font-size:.82rem;color:var(--muted)}
+.m .eff{text-align:right;display:grid;gap:2px}
+.m .eff .pct{font-family:var(--f-display);font-size:1.45rem;font-weight:600;color:var(--flame);line-height:1}
+.m .eff .area{font-size:.82rem;color:var(--muted)}
+.m .eff .euro{font-family:var(--f-mono);font-size:.9rem;white-space:nowrap}
+.m.off .eff .pct{color:var(--muted)}
+.tag{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--line-soft);color:var(--muted);margin-right:6px}
+.tag.h{background:var(--flame-soft);color:var(--flame)}
+.tag.w{background:var(--warn-soft);color:var(--warn)}
+.total{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.total div{display:grid;gap:2px;min-width:0}
+.total .v{font-family:var(--f-display);font-size:1.7rem;font-weight:600;line-height:1.05}
+.total .v.acc{color:var(--flame)}
+.total .l{font-size:.85rem;color:var(--muted)}
+.note{font-size:.9rem;color:var(--muted);max-width:75ch}
+
+/* Chart */
+.chart-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 12px 8px;display:grid;gap:8px;min-width:0}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:.9rem;color:var(--muted);padding:0 6px}
+.legend i{display:inline-block;width:22px;height:0;border-top:2.5px solid;vertical-align:middle;margin-right:6px}
+.legend .lo i{border-color:var(--grey-line);border-top-style:dashed}
+.legend .lz i{border-color:var(--flame)}
+.legend .li i{border-color:var(--ink);border-top-width:0;width:10px;height:10px;border-radius:50%;background:var(--ink)}
+#chart{width:100%;display:block}
+#chart text{font-family:var(--f-body);font-size:12px;fill:var(--muted)}
+
+/* Table */
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:.95rem}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;background:var(--surface);position:sticky;top:0;z-index:1;vertical-align:bottom;white-space:normal;line-height:1.25}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+td.ziel{color:var(--flame);font-weight:600}
+td.ohne{color:var(--muted)}
+tr.month td{background:var(--bg);font-family:var(--f-display);font-weight:600;font-size:1.05rem;text-align:left;color:var(--ink);padding:6px 10px}
+tr.due td{background:var(--flame-soft)}
+tr.past td.date{color:var(--muted)}
+.ist{width:96px;font-family:var(--f-mono);font-size:.95rem;text-align:right;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+.ist:focus{outline:2px solid var(--flame);outline-offset:1px;border-color:transparent}
+.ist.err{border-color:var(--bad)}
+.chip{display:inline-block;font-size:.78rem;font-weight:700;padding:2px 8px;border-radius:999px;font-family:var(--f-body)}
+.chip.good{background:var(--good-soft);color:var(--good)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.due{background:var(--flame);color:var(--flame-ink)}
+.pos{color:var(--bad)} .neg{color:var(--good)}
+.save-state{font-size:.88rem;color:var(--muted)}
+.save-state.ok::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:6px}
+.save-state.local::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn);margin-right:6px}
+.tools{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.btn{font:600 .95rem var(--f-body);color:var(--flame-ink);background:var(--flame);border:0;border-radius:8px;padding:9px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.6;cursor:progress}
+.btn svg{width:16px;height:16px;fill:currentColor}
+.export-msg{font-size:.88rem;color:var(--muted)}
+.tips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tip{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:6px;align-content:start;min-width:0}
+.tip p{color:var(--muted);font-size:.95rem}
+.method{display:grid;gap:8px;font-size:.92rem;color:var(--muted);max-width:80ch}
+.method h3{color:var(--ink)}
+.method ul{margin:0;padding-left:1.2em;display:grid;gap:4px}
+:focus-visible{outline:2px solid var(--flame);outline-offset:2px}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:minmax(0,1fr)}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tips{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:560px){
+  .m{grid-template-columns:24px minmax(0,1fr)}
+  .m .eff{grid-column:2;text-align:left;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+  .total{grid-template-columns:minmax(0,1fr)}
+  .kpi .big{font-size:1.65rem}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="hero-text">
+      <div class="eyebrow">Erenja Erdgas Fix · 13,02 ct/kWh · ab 1.12.2026</div>
+      <h1>Gas-Sparplan 2026/27</h1>
+      <p class="lead">Wähle die Maßnahmen, die du umsetzt. Daraus ergibt sich dein Ziel-Zählerstand für jeden Samstag bis zum Vertragsende am 30.11.2027. Trag jede Woche deinen echten Stand ein und sieh sofort, ob du im Plan liegst.</p>
+    </div>
+    <div class="meter-card" aria-live="polite">
+      <div class="eyebrow" id="heroLabel">Nächste Ablesung</div>
+      <div class="meter-row">
+        <div class="digits" id="heroDigits" aria-label="Ziel-Zählerstand"></div>
+        <div class="unit">m³</div>
+      </div>
+      <div class="meter-sub">
+        <span>Ziel höchstens <b id="heroZiel">–</b></span>
+        <span>ohne Sparen <b id="heroOhne">–</b></span>
+      </div>
+    </div>
+  </header>
+
+  <div class="kpis" id="kpis">
+    <div class="kpi"><div class="label">Ohne Maßnahmen</div><div class="big num" id="kOhneKwh">–</div><div class="small" id="kOhneEur">–</div></div>
+    <div class="kpi accent"><div class="label">Mit deinem Plan</div><div class="big num" id="kPlanKwh">–</div><div class="small" id="kPlanEur">–</div></div>
+    <div class="kpi"><div class="label">Passender Abschlag</div><div class="big num" id="kAbschlag">–</div><div class="small" id="kAbschlagNote">–</div></div>
+    <div class="kpi"><div class="label">Stand bisher</div><div class="big num" id="kStand">–</div><div class="small" id="kStandNote">Noch keine Ablesung eingetragen.</div></div>
+  </div>
+
+  <section aria-labelledby="hMass">
+    <div class="sec-head">
+      <h2 id="hMass">Maßnahmen</h2>
+      <p class="note">Ersparnis jeweils für die Maßnahme allein, bezogen auf deinen Verbrauch und 13,02 ct/kWh.</p>
+    </div>
+    <div class="groups" id="groups"></div>
+    <div class="total">
+      <div><span class="l">Dein Ziel (ausgewählt)</span><span class="v acc num" id="tSel">–</span><span class="l" id="tSelSub">–</span></div>
+      <div><span class="l">Alles umgesetzt</span><span class="v num" id="tAll">–</span><span class="l" id="tAllSub">–</span></div>
+      <div><span class="l">Davon Heizung / Warmwasser</span><span class="v num" id="tSplit">–</span><span class="l">Heizung ≈ 82 %, Warmwasser ≈ 18 % deines Verbrauchs</span></div>
+    </div>
+    <p class="note">Die Prozente werden nicht einfach addiert. Mehrere Maßnahmen überschneiden sich, deshalb rechnet der Plan sie nacheinander auf den jeweils verbleibenden Verbrauch.</p>
+  </section>
+
+  <section aria-labelledby="hVerlauf">
+    <div class="sec-head"><h2 id="hVerlauf">Verlauf</h2></div>
+    <div class="chart-card">
+      <div class="legend"><span class="lo"><i></i>Ohne Sparen</span><span class="lz"><i></i>Dein Ziel</span><span class="li"><i></i>Deine Ablesungen</span></div>
+      <svg id="chart" role="img" aria-label="Zählerstand: Soll ohne Sparen, Ziel mit Plan und deine Ablesungen"></svg>
+    </div>
+  </section>
+
+  <section aria-labelledby="hWoche">
+    <div class="sec-head">
+      <h2 id="hWoche">Wochenplan</h2>
+      <div class="tools">
+        <span class="save-state" id="saveState">Gespeicherte Ablesungen werden geladen …</span>
+        <button type="button" class="btn" id="btnXlsx"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.42l3.3 3.3V4a1 1 0 0 1 1-1zM5 19h14a1 1 0 1 1 0 2H5a1 1 0 1 1 0-2z"/></svg>Excel exportieren</button>
+        <span class="export-msg" id="exportMsg" aria-live="polite"></span>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>KW</th><th>Samstag</th><th>Soll ohne Sparen</th><th>Ziel mit Plan</th><th>Wochen-Ziel m³</th><th>Dein Zählerstand</th><th>Deine Woche m³</th><th>Abweichung zum Ziel</th><th>Status</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="hTips">
+    <h2 id="hTips">So liest du richtig ab</h2>
+    <div class="tips">
+      <div class="tip"><h3>Immer samstags, gleiche Uhrzeit</h3><p>Dann sind die Wochen vergleichbar. Trag nur die schwarzen Ziffern vor dem Komma ein, die roten Nachkommastellen brauchst du nicht.</p></div>
+      <div class="tip"><h3>Auf den Trend schauen</h3><p>Eine kalte Woche liegt fast immer über dem Ziel, eine milde darunter. Entscheidend ist die Abweichung über drei, vier Wochen. Liegt sie dauerhaft im gelben oder roten Bereich, nimm eine weitere Maßnahme dazu.</p></div>
+      <div class="tip"><h3>30.11. und 1.12. fotografieren</h3><p>Zum Anbieterwechsel ein Foto mit Datum machen und an Montana und Erenja melden. Der Stand vom 28.11. hier im Plan ist ein guter Vergleich.</p></div>
+    </div>
+  </section>
+
+  <section class="method" aria-labelledby="hMethod">
+    <h3 id="hMethod">So ist gerechnet</h3>
+    <ul>
+      <li>Normalverbrauch: Ø 2.524 m³ pro Jahr ≈ 26.900 kWh, Mittel deiner Ablesungen von Nov. 2024 bis Nov. 2026.</li>
+      <li>Umrechnung wie in deinem Dokument: m³ × 11,488 × 0,9281 = 10,66 kWh pro m³.</li>
+      <li>Verteilung über das Jahr: Grundlast für Warmwasser ca. 1,22 m³ pro Tag, Heizanteil nach Gradtagen. Beides ist an deine Ablesungen seit Juni 2023 angepasst. Die Ablesezeiträume trifft das Modell meist auf wenige Prozent genau, einzelne kurze Zeiträume weichen stärker ab.</li>
+      <li>Kosten: 13,02 ct/kWh und 12,42 € Grundpreis im Monat, für den Erenja-Vertrag vom 1.12.2026 bis 30.11.2027.</li>
+      <li>Quellen der Sparwerte: <a href="https://www.verbraucherzentrale.de/wissen/energie/heizen-und-warmwasser/heizung-optimieren-so-sparen-sie-mit-den-wichtigsten-einstellungen-6930" target="_blank" rel="noopener">Verbraucherzentrale – Heizung optimieren</a>, <a href="https://www.co2online.de/presse/warmwasserkosten-senken-haushalte-koennen-durchschnittlich-90-euro-pro-jahr-sparen/" target="_blank" rel="noopener">co2online – Warmwasserkosten senken</a>, <a href="https://www.co2online.de/modernisieren-und-bauen/sanierung-modernisierung/interview-energiesparkommissar-geringinvestive-massnahmen/" target="_blank" rel="noopener">co2online – Heizkurve</a>. Als „Schätzung“ markierte Werte sind vorsichtige Annahmen.</li>
+    </ul>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+"use strict";
+var PLAN={"start":"2026-11-07","startStand":14037,"rows":[{"d":"2026-11-14","b":8.54,"h":49.154},{"d":"2026-11-21","b":8.54,"h":57.45},{"d":"2026-11-28","b":8.54,"h":67.65},{"d":"2026-12-05","b":8.54,"h":77.96},{"d":"2026-12-12","b":8.54,"h":88.271},{"d":"2026-12-19","b":8.54,"h":98.146},{"d":"2026-12-26","b":8.54,"h":102.798},{"d":"2027-01-02","b":8.54,"h":106.0},{"d":"2027-01-09","b":8.54,"h":109.201},{"d":"2027-01-16","b":8.54,"h":112.402},{"d":"2027-01-23","b":8.54,"h":112.398},{"d":"2027-01-30","b":8.54,"h":108.119},{"d":"2027-02-06","b":8.54,"h":103.84},{"d":"2027-02-13","b":8.54,"h":99.562},{"d":"2027-02-20","b":8.54,"h":94.398},{"d":"2027-02-27","b":8.54,"h":86.793},{"d":"2027-03-06","b":8.54,"h":79.046},{"d":"2027-03-13","b":8.54,"h":71.299},{"d":"2027-03-20","b":8.54,"h":63.353},{"d":"2027-03-27","b":8.54,"h":54.182},{"d":"2027-04-03","b":8.54,"h":44.811},{"d":"2027-04-10","b":8.54,"h":35.441},{"d":"2027-04-17","b":8.54,"h":26.125},{"d":"2027-04-24","b":8.54,"h":20.085},{"d":"2027-05-01","b":8.54,"h":15.979},{"d":"2027-05-08","b":8.54,"h":11.873},{"d":"2027-05-15","b":8.54,"h":7.766},{"d":"2027-05-22","b":8.54,"h":4.578},{"d":"2027-05-29","b":8.54,"h":3.407},{"d":"2027-06-05","b":8.54,"h":2.298},{"d":"2027-06-12","b":8.54,"h":1.189},{"d":"2027-06-19","b":8.54,"h":0.181},{"d":"2027-06-26","b":8.54,"h":0.0},{"d":"2027-07-03","b":8.54,"h":0.0},{"d":"2027-07-10","b":8.54,"h":0.0},{"d":"2027-07-17","b":8.54,"h":0.0},{"d":"2027-07-24","b":8.54,"h":0.0},{"d":"2027-07-31","b":8.54,"h":0.0},{"d":"2027-08-07","b":8.54,"h":0.0},{"d":"2027-08-14","b":8.54,"h":0.0},{"d":"2027-08-21","b":8.54,"h":0.125},{"d":"2027-08-28","b":8.54,"h":0.699},{"d":"2027-09-04","b":8.54,"h":1.31},{"d":"2027-09-11","b":8.54,"h":1.921},{"d":"2027-09-18","b":8.54,"h":2.688},{"d":"2027-09-25","b":8.54,"h":6.149},{"d":"2027-10-02","b":8.54,"h":10.585},{"d":"2027-10-09","b":8.54,"h":15.02},{"d":"2027-10-16","b":8.54,"h":19.456},{"d":"2027-10-23","b":8.54,"h":25.251},{"d":"2027-10-30","b":8.54,"h":32.856},{"d":"2027-11-06","b":8.54,"h":40.462},{"d":"2027-11-13","b":8.54,"h":48.068},{"d":"2027-11-20","b":8.54,"h":56.115},{"d":"2027-11-27","b":8.54,"h":66.177},{"d":"2027-11-30","b":3.66,"h":31.518}]};
+var KWH=11.488*0.9281, AP=0.1302, GP_YEAR=12.42*12, ABSCHLAG=263;
+var ANNUAL=2524, BASE_YEAR=1.2200651*365, HEAT_YEAR=ANNUAL-BASE_YEAR;
+var HEAT_KWH=HEAT_YEAR*KWH, BASE_KWH=BASE_YEAR*KWH;
+
+var MEASURES=[
+ {id:"temp",g:"sofort",t:"Raumtemperatur um 1 °C senken",how:"Wohnzimmer 20 °C, Schlafzimmer 17 °C, Küche und Flur 18 °C. In der App der WLAN-Thermostate die Komforttemperatur überall um 1 °C senken.",a:"h",p:6,cost:"0 €",src:"Verbraucherzentrale: ca. 6 % pro Grad",def:true},
+ {id:"zeit",g:"sofort",t:"Zeitpläne der WLAN-Thermostate schärfen",how:"Nachts ab 22 Uhr 17 °C und erst 30 Minuten vor dem Aufstehen hochheizen. Bei Abwesenheit Eco-Modus, selten genutzte Räume dauerhaft 16 °C, Fenster-offen-Erkennung einschalten.",a:"h",p:4,cost:"0 €",src:"Herstellerangaben 5–15 %, hier vorsichtig angesetzt",def:true},
+ {id:"luft",g:"sofort",t:"Stoßlüften statt Kippfenster",how:"2–3 × täglich 5–10 Minuten ganz öffnen und das Thermostat dabei zudrehen. In der Heizsaison kein Dauer-Kippen.",a:"h",p:2,cost:"0 €",src:"Schätzung",def:true},
+ {id:"halt",g:"sofort",t:"Wärme im Raum halten",how:"Rollläden und Vorhänge nachts schließen, Heizkörper nicht mit Möbeln oder Vorhängen verdecken, gluckernde Heizkörper entlüften.",a:"h",p:2,cost:"0 €",src:"Schätzung",def:true},
+ {id:"dusch",g:"sofort",t:"Kürzer duschen",how:"5 statt 10 Minuten, Wasser beim Einseifen abdrehen. Hände mit kaltem Wasser waschen.",a:"w",p:10,cost:"0 €",src:"co2online: halbe Duschzeit spart über 100 € im Jahr",def:true},
+ {id:"ww",g:"sofort",t:"Warmwasser-Einstellungen prüfen",how:"Speichertemperatur auf 60 °C begrenzen, nicht niedriger (Legionellen). Zirkulationspumpe per Zeitprogramm nur morgens und abends laufen lassen.",a:"w",p:10,cost:"0 €",src:"Schätzung, hängt von deiner Anlage ab",def:false},
+ {id:"kopf",g:"klein",t:"Sparduschkopf einbauen",how:"Duschkopf mit Luftbeimischung, 6–9 statt 12–15 Liter pro Minute. Lässt sich ohne Werkzeug gegen den alten tauschen.",a:"w",p:10,cost:"ca. 20–40 €",src:"co2online: bis zu 50 % weniger Durchfluss",def:false},
+ {id:"rohr",g:"klein",t:"Heizungsrohre im Keller dämmen",how:"Freiliegende Heizungs- und Warmwasserrohre in unbeheizten Räumen mit Dämmschalen aus dem Baumarkt ummanteln.",a:"h",p:1,cost:"ca. 5–10 € pro Meter",src:"Verbraucherzentrale: mehrere Euro pro Meter und Jahr",def:false},
+ {id:"kurve",g:"profi",t:"Heizkurve und Vorlauftemperatur senken",how:"Vorlauf so weit absenken, dass alle Räume bei voll geöffnetem Thermostat gerade noch warm werden. Bei der Wartung einstellen lassen oder nach Anleitung selbst in kleinen Schritten.",a:"h",p:5,cost:"0 € bis Wartungspreis",src:"Verbraucherzentrale: ca. 5 %, co2online: 5–10 %",def:false},
+ {id:"abgl",g:"profi",t:"Hydraulischer Abgleich",how:"Ein Fachbetrieb stellt jeden Heizkörper auf die passende Wassermenge ein. Am besten zusammen mit der Heizkurve beauftragen.",a:"h",p:5,cost:"einige hundert Euro, Angebot einholen",src:"Verbraucherzentrale: ca. 5 % der Heizkosten",def:false}
+];
+var GROUPS=[{id:"sofort",t:"Sofort & kostenlos",s:"diese Woche umsetzbar"},{id:"klein",t:"Kleine Anschaffung",s:"Baumarkt, ein Nachmittag"},{id:"profi",t:"Mit Fachbetrieb",s:"bei der nächsten Heizungswartung"}];
+
+var nf0=new Intl.NumberFormat("de-DE",{maximumFractionDigits:0});
+var nf1=new Intl.NumberFormat("de-DE",{minimumFractionDigits:1,maximumFractionDigits:1});
+function eur(v){return nf0.format(Math.round(v))+" €";}
+function pct1(v){return nf1.format(v*100)+" %";}
+function parseD(s){var a=s.split("-");return new Date(+a[0],+a[1]-1,+a[2]);}
+function fmtD(d){return ("0"+d.getDate()).slice(-2)+"."+("0"+(d.getMonth()+1)).slice(-2)+"."+d.getFullYear();}
+function isoWeek(d){var t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));var day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);var y0=new Date(Date.UTC(t.getUTCFullYear(),0,1));return Math.ceil(((t-y0)/86400000+1)/7);}
+var MONTHS=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+var MSHORT=["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+
+var state={sel:new Set(MEASURES.filter(function(m){return m.def;}).map(function(m){return m.id;})),readings:{}};
+var store={mode:"loading",db:null};
+
+function factors(sel){var fh=1,fw=1;MEASURES.forEach(function(m){if(sel.has(m.id)){if(m.a==="h")fh*=1-m.p/100;else fw*=1-m.p/100;}});return {sh:1-fh,sw:1-fw,total:(HEAT_YEAR*(1-fh)+BASE_YEAR*(1-fw))/ANNUAL};}
+function computeRows(f){var o=PLAN.startStand,z=PLAN.startStand;return PLAN.rows.map(function(r){var wo=r.b+r.h,wz=r.b*(1-f.sw)+r.h*(1-f.sh);o+=wo;z+=wz;return {d:r.d,date:parseD(r.d),ohne:o,ziel:z,wo:wo,wz:wz};});}
+
+/* ---------- measures UI ---------- */
+function buildMeasures(){
+  var host=document.getElementById("groups");host.textContent="";
+  GROUPS.forEach(function(g){
+    var wrap=document.createElement("div");wrap.className="group";
+    var ht=document.createElement("div");ht.className="group-title";
+    var h=document.createElement("h3");h.textContent=g.t;var s=document.createElement("span");s.textContent=g.s;ht.appendChild(h);ht.appendChild(s);wrap.appendChild(ht);
+    var ul=document.createElement("ul");ul.className="mlist";
+    MEASURES.filter(function(m){return m.g===g.id;}).forEach(function(m){
+      var li=document.createElement("li");li.className="m";li.id="m-"+m.id;
+      var cb=document.createElement("input");cb.type="checkbox";cb.id="cb-"+m.id;cb.checked=state.sel.has(m.id);
+      cb.addEventListener("change",function(){if(cb.checked)state.sel.add(m.id);else state.sel.delete(m.id);saveMeasures();renderAll();});
+      var lab=document.createElement("label");lab.htmlFor=cb.id;
+      var t=document.createElement("span");t.className="t";t.textContent=m.t;
+      var how=document.createElement("span");how.className="how";how.textContent=m.how;
+      var meta=document.createElement("span");meta.className="meta";
+      var tag=document.createElement("span");tag.className="tag "+m.a;tag.textContent=m.a==="h"?"Heizung":"Warmwasser";
+      meta.appendChild(tag);meta.appendChild(document.createTextNode("Kosten: "+m.cost+" · Quelle: "+m.src));
+      lab.appendChild(t);lab.appendChild(how);lab.appendChild(meta);
+      var eff=document.createElement("div");eff.className="eff";
+      var kwh=(m.a==="h"?HEAT_KWH:BASE_KWH)*m.p/100;
+      var p=document.createElement("span");p.className="pct";p.textContent="−"+nf1.format(m.p*(m.a==="h"?HEAT_YEAR:BASE_YEAR)/ANNUAL)+" %";
+      var ar=document.createElement("span");ar.className="area";ar.textContent=m.p+" % der "+(m.a==="h"?"Heizung":"Warmwasser-Energie");
+      var e=document.createElement("span");e.className="euro";e.textContent="≈ "+nf0.format(Math.round(kwh/10)*10)+" kWh · "+eur(kwh*AP)+"/Jahr";
+      eff.appendChild(p);eff.appendChild(ar);eff.appendChild(e);
+      li.appendChild(cb);li.appendChild(lab);li.appendChild(eff);ul.appendChild(li);
+    });
+    wrap.appendChild(ul);host.appendChild(wrap);
+  });
+}
+function syncCheckboxes(){MEASURES.forEach(function(m){var cb=document.getElementById("cb-"+m.id);if(cb)cb.checked=state.sel.has(m.id);var li=document.getElementById("m-"+m.id);if(li)li.classList.toggle("off",!state.sel.has(m.id));});}
+
+/* ---------- table ---------- */
+var rowEls={};
+function buildTable(){
+  var tb=document.getElementById("tbody");tb.textContent="";var lastM=-1;
+  // start row
+  var sr=document.createElement("tr");sr.className="past";
+  sr.innerHTML='<td class="num">'+isoWeek(parseD(PLAN.start))+'</td><td class="date">'+fmtD(parseD(PLAN.start))+' · Start</td><td class="num ohne">'+nf0.format(PLAN.startStand)+'</td><td class="num ziel">'+nf0.format(PLAN.startStand)+'</td><td class="num">–</td><td class="num">'+nf0.format(PLAN.startStand)+'</td><td class="num">–</td><td class="num">–</td><td><span class="chip good">abgelesen</span></td>';
+  PLAN.rows.forEach(function(r,i){
+    var d=parseD(r.d);
+    if(d.getMonth()!==lastM){lastM=d.getMonth();var mr=document.createElement("tr");mr.className="month";var td=document.createElement("td");td.colSpan=9;td.textContent=MONTHS[d.getMonth()]+" "+d.getFullYear();mr.appendChild(td);tb.appendChild(mr);if(i===0)tb.appendChild(sr);}
+    var tr=document.createElement("tr");
+    var cells=["kw","date","ohne","ziel","wz","ist","wi","dev","st"].map(function(k){var td=document.createElement("td");if(k!=="date"&&k!=="st")td.className="num";if(k==="ohne")td.className="num ohne";if(k==="ziel")td.className="num ziel";if(k==="date")td.className="date";tr.appendChild(td);return td;});
+    cells[0].textContent=isoWeek(d);
+    var last=i===PLAN.rows.length-1;
+    cells[1].textContent=(last?"Di ":"")+fmtD(d)+(last?" · Vertragsende":"");
+    var inp=document.createElement("input");inp.className="ist";inp.id="ist-"+r.d;inp.type="text";inp.inputMode="decimal";inp.autocomplete="off";inp.setAttribute("aria-label","Zählerstand am "+fmtD(d));inp.placeholder="";
+    inp.addEventListener("change",function(){onIstChange(r.d,inp);});
+    inp.addEventListener("keydown",function(ev){if(ev.key==="Enter"){inp.blur();}});
+    cells[5].appendChild(inp);
+    tb.appendChild(tr);
+    rowEls[r.d]={tr:tr,c:cells,inp:inp};
+  });
+}
+function parseStand(s){s=String(s).trim().replace(/\s/g,"");if(!s)return null;
+  // "14.095" (thousands dot) or "14095,3" or "14095.3"
+  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s))s=s.replace(/\./g,"").replace(",",".");else s=s.replace(",",".");
+  var v=Number(s);return isFinite(v)?v:NaN;}
+function onIstChange(d,inp){
+  var v=parseStand(inp.value);
+  if(v===null){delete state.readings[d];inp.classList.remove("err");persistReading(d,null);renderAll();return;}
+  if(isNaN(v)||v<PLAN.startStand||v>99999){inp.classList.add("err");inp.title="Bitte den Zählerstand in m³ eingeben, mindestens "+nf0.format(PLAN.startStand)+".";return;}
+  inp.classList.remove("err");inp.title="";
+  state.readings[d]=v;persistReading(d,v);renderAll();
+}
+
+function dueIndex(rows){var t=new Date();t.setHours(0,0,0,0);for(var i=0;i<rows.length;i++){if(rows[i].date>=t)return i;}return rows.length-1;}
+
+function renderTable(rows){
+  var due=dueIndex(rows);var prevIst=PLAN.startStand;var prevKnown=true;
+  rows.forEach(function(r,i){
+    var el=rowEls[r.d],c=el.c;
+    c[2].textContent=nf0.format(Math.round(r.ohne));
+    c[3].textContent=nf0.format(Math.round(r.ziel));
+    c[4].textContent=nf0.format(Math.round(r.wz));
+    if(document.activeElement!==el.inp){var v=state.readings[r.d];el.inp.value=(v==null)?"":String(v).replace(".",",");}
+    var ist=state.readings[r.d];
+    el.tr.classList.toggle("due",i===due&&ist==null);
+    el.tr.classList.toggle("past",i<due);
+    if(ist!=null){
+      c[6].textContent=prevKnown?nf0.format(Math.round(ist-prevIst)):"–";
+      var dev=ist-r.ziel;var base=r.ziel-PLAN.startStand;
+      c[7].innerHTML="";var sp=document.createElement("span");sp.className=dev>0?"pos":"neg";
+      sp.textContent=(dev>0?"+":"−")+nf0.format(Math.abs(Math.round(dev)))+" m³ ("+(dev>0?"+":"−")+nf1.format(Math.abs(dev/base*100))+" %)";c[7].appendChild(sp);
+      var st=ist<=r.ziel?["good","im Ziel"]:(ist<=r.ohne?["warn","über Ziel"]:["bad","über Normal"]);
+      c[8].innerHTML='<span class="chip '+st[0]+'">'+st[1]+'</span>';
+      prevIst=ist;prevKnown=true;
+    }else{
+      c[6].textContent="–";c[7].textContent="–";
+      c[8].innerHTML=i===due?'<span class="chip due">fällig</span>':"";
+      prevKnown=false;
+    }
+  });
+}
+
+/* ---------- KPIs & hero ---------- */
+function renderKpis(f,rows){
+  var ohneKwh=ANNUAL*KWH, planM3=ANNUAL-(HEAT_YEAR*f.sh+BASE_YEAR*f.sw), planKwh=planM3*KWH;
+  var ohneEur=ohneKwh*AP+GP_YEAR, planEur=planKwh*AP+GP_YEAR;
+  document.getElementById("kOhneKwh").textContent=nf0.format(Math.round(ohneKwh/100)*100)+" kWh";
+  document.getElementById("kOhneEur").textContent=eur(ohneEur)+" im Vertragsjahr";
+  document.getElementById("kPlanKwh").textContent=nf0.format(Math.round(planKwh/100)*100)+" kWh";
+  document.getElementById("kPlanEur").textContent=eur(planEur)+" · spart "+eur(ohneEur-planEur)+" (−"+pct1(f.total)+")";
+  var ab=Math.ceil(planEur/12/5)*5;
+  document.getElementById("kAbschlag").textContent=ab+" €/Monat";
+  document.getElementById("kAbschlagNote").textContent=ab<=ABSCHLAG?"Deine 263 € reichen, wenn du den Plan schaffst.":"Deine 263 € reichen nicht. Fehlbetrag ca. "+eur(planEur-ABSCHLAG*12)+" im Jahr.";
+  // latest reading
+  var last=null;rows.forEach(function(r){if(state.readings[r.d]!=null)last=r;});
+  var ks=document.getElementById("kStand"),kn=document.getElementById("kStandNote");
+  if(!last){ks.textContent="–";var due=rows[dueIndex(rows)];kn.textContent="Noch keine Ablesung eingetragen. Erster Termin: Samstag, "+fmtD(due.date)+".";ks.className="big num";return;}
+  var ist=state.readings[last.d],dev=ist-last.ziel,saved=(last.ohne-ist)*KWH*AP;
+  ks.textContent=(dev>0?"+":"−")+nf0.format(Math.abs(Math.round(dev)))+" m³";
+  ks.className="big num "+(dev>0?"pos":"neg");
+  kn.textContent=(dev>0?"über":"unter")+" Ziel am "+fmtD(last.date)+". "+(saved>=0?"Bisher gespart: "+eur(saved):"Mehrverbrauch ggü. normal: "+eur(-saved))+".";
+}
+function renderHero(rows){
+  var i=dueIndex(rows),r=rows[i];
+  document.getElementById("heroLabel").textContent="Ziel für Samstag, "+fmtD(r.date)+(i===rows.length-1?" (Vertragsende)":"");
+  var z=String(Math.round(r.ziel)).padStart(5,"0");var host=document.getElementById("heroDigits");host.textContent="";
+  z.split("").forEach(function(ch){var s=document.createElement("span");s.className="digit";s.textContent=ch;host.appendChild(s);});
+  host.setAttribute("aria-label","Ziel-Zählerstand "+nf0.format(Math.round(r.ziel))+" Kubikmeter");
+  document.getElementById("heroZiel").textContent=nf0.format(Math.round(r.ziel))+" m³";
+  document.getElementById("heroOhne").textContent=nf0.format(Math.round(r.ohne))+" m³";
+}
+function renderTotals(f){
+  var all=factors(new Set(MEASURES.map(function(m){return m.id;})));
+  function sub(ff){var k=(HEAT_KWH*ff.sh+BASE_KWH*ff.sw);return "≈ "+nf0.format(Math.round(k/100)*100)+" kWh · "+eur(k*AP)+" pro Jahr";}
+  document.getElementById("tSel").textContent="−"+pct1(f.total);
+  document.getElementById("tSelSub").textContent=sub(f);
+  document.getElementById("tAll").textContent="−"+pct1(all.total);
+  document.getElementById("tAllSub").textContent=sub(all);
+  document.getElementById("tSplit").textContent="−"+nf1.format(f.sh*100)+" % / −"+nf1.format(f.sw*100)+" %";
+}
+
+/* ---------- chart ---------- */
+var svgNS="http://www.w3.org/2000/svg";
+function el(n,a){var e=document.createElementNS(svgNS,n);for(var k in a)e.setAttribute(k,a[k]);return e;}
+function renderChart(rows){
+  var svg=document.getElementById("chart");var W=Math.max(300,svg.parentNode.clientWidth-24),H=W<520?240:300;
+  svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("height",H);svg.textContent="";
+  var pl=W<520?46:56,pr=12,pt=10,pb=26;
+  var t0=parseD(PLAN.start).getTime(),t1=rows[rows.length-1].date.getTime();
+  var yMin=14000,yMax=Math.ceil(rows[rows.length-1].ohne/500)*500;
+  function X(t){return pl+(t-t0)/(t1-t0)*(W-pl-pr);}
+  function Y(v){return pt+(1-(v-yMin)/(yMax-yMin))*(H-pt-pb);}
+  var css=getComputedStyle(document.documentElement);
+  var cLine=css.getPropertyValue("--line-soft").trim(),cMuted=css.getPropertyValue("--muted").trim(),cFlame=css.getPropertyValue("--flame").trim(),cGrey=css.getPropertyValue("--grey-line").trim(),cInk=css.getPropertyValue("--ink").trim(),cSurf=css.getPropertyValue("--surface").trim();
+  for(var v=yMin;v<=yMax;v+=500){svg.appendChild(el("line",{x1:pl,x2:W-pr,y1:Y(v),y2:Y(v),stroke:cLine,"stroke-width":1}));var tx=el("text",{x:pl-8,y:Y(v)+4,"text-anchor":"end"});tx.textContent=nf0.format(v);svg.appendChild(tx);}
+  var step=W<520?2:1;var mi=0;
+  for(var y=2026,m=11;y<2028;){var d=new Date(y,m,1);if(d.getTime()>t1)break;if(d.getTime()>=t0){if(mi%step===0){var x=X(d.getTime());svg.appendChild(el("line",{x1:x,x2:x,y1:H-pb,y2:H-pb+4,stroke:cMuted,"stroke-width":1}));var lt=el("text",{x:x,y:H-8,"text-anchor":"middle"});lt.textContent=MSHORT[m]+(m===0?" ’"+String(y).slice(2):"");svg.appendChild(lt);}mi++;}m++;if(m>11){m=0;y++;}}
+  svg.appendChild(el("line",{x1:pl,x2:W-pr,y1:H-pb,y2:H-pb,stroke:cMuted,"stroke-width":1}));
+  // today
+  var now=Date.now();if(now>t0&&now<t1){var xn=X(now);svg.appendChild(el("line",{x1:xn,x2:xn,y1:pt,y2:H-pb,stroke:cMuted,"stroke-width":1,"stroke-dasharray":"2 3"}));var tt=el("text",{x:xn+4,y:pt+12});tt.textContent="heute";svg.appendChild(tt);}
+  function path(key){var s="M"+X(t0).toFixed(1)+","+Y(PLAN.startStand).toFixed(1);rows.forEach(function(r){s+="L"+X(r.date.getTime()).toFixed(1)+","+Y(r[key]).toFixed(1);});return s;}
+  svg.appendChild(el("path",{d:path("ohne"),fill:"none",stroke:cGrey,"stroke-width":2,"stroke-dasharray":"6 4"}));
+  svg.appendChild(el("path",{d:path("ziel"),fill:"none",stroke:cFlame,"stroke-width":2.5}));
+  var pts=[[t0,PLAN.startStand]];rows.forEach(function(r){if(state.readings[r.d]!=null)pts.push([r.date.getTime(),state.readings[r.d]]);});
+  if(pts.length>1){var s="";pts.forEach(function(p,i){s+=(i?"L":"M")+X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1);});svg.appendChild(el("path",{d:s,fill:"none",stroke:cInk,"stroke-width":1.5}));}
+  pts.forEach(function(p){svg.appendChild(el("circle",{cx:X(p[0]),cy:Y(p[1]),r:3.5,fill:cInk,stroke:cSurf,"stroke-width":1.5}));});
+  // end labels
+  var lr=rows[rows.length-1];
+  var e1=el("text",{x:W-pr-2,y:Y(lr.ohne)-6,"text-anchor":"end"});e1.textContent=nf0.format(Math.round(lr.ohne));svg.appendChild(e1);
+  var e2=el("text",{x:W-pr-2,y:Y(lr.ziel)+16,"text-anchor":"end",fill:cFlame});e2.textContent=nf0.format(Math.round(lr.ziel));svg.appendChild(e2);
+}
+
+/* ---------- render ---------- */
+var lastRows=[];
+function renderAll(){var f=factors(state.sel);var rows=computeRows(f);lastRows=rows;syncCheckboxes();renderTotals(f);renderKpis(f,rows);renderHero(rows);renderTable(rows);renderChart(rows);}
+
+/* ---------- Excel export ---------- */
+function xlSerial(d){return (Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(1899,11,30))/86400000;}
+function xn(v,z){var c={t:"n",v:v};if(z)c.z=z;return c;}
+function xs(v){return {t:"s",v:String(v)};}
+function xf(f,v,z){var c={f:f};if(typeof v==="number"){c.t="n";c.v=v;}else{c.t="s";c.v=v==null?"":String(v);}if(z)c.z=z;return c;}
+function sheetFrom(rows,widths){
+  var ws={},maxC=0;
+  rows.forEach(function(row,r){row.forEach(function(c,ci){if(c==null||c==="")return;ws[XLSX.utils.encode_cell({r:r,c:ci})]=(typeof c==="object")?c:(typeof c==="number"?xn(c):xs(c));if(ci>maxC)maxC=ci;});});
+  ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length-1,c:Math.max(maxC,widths?widths.length-1:0)}});
+  if(widths)ws["!cols"]=widths.map(function(w){return {wch:w};});
+  return ws;
+}
+function todayIso(){var d=new Date();return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2);}
+function buildWorkbook(){
+  var f=factors(state.sel),rows=computeRows(f);
+  var DF="dd.mm.yyyy",M3="#,##0",PCT="0.0%",EUR='#,##0 "€"',KW="#,##0";
+  // Wochenplan
+  var start=parseD(PLAN.start);
+  var w=[[xs("KW"),xs("Datum"),xs("Soll ohne Sparen (m³)"),xs("Ziel mit Plan (m³)"),xs("Wochen-Ziel (m³)"),xs("Dein Zählerstand (m³)"),xs("Deine Woche (m³)"),xs("Abweichung zum Ziel (m³)"),xs("Abweichung zum Ziel (%)"),xs("Status")],
+    [xn(isoWeek(start)),xn(xlSerial(start),DF),xn(PLAN.startStand,M3),xn(PLAN.startStand,M3),"",xn(PLAN.startStand,M3),"","","",xs("Start")]];
+  var prev=PLAN.startStand;
+  rows.forEach(function(r,i){
+    var n=i+3,o=Math.round(r.ohne),z=Math.round(r.ziel),ist=state.readings[r.d];
+    var has=typeof ist==="number",prevHas=typeof prev==="number";
+    var wk=has&&prevHas?ist-prev:"",dev=has?ist-z:"",pct=has?(ist-z)/(z-PLAN.startStand):"";
+    var st=has?(ist<=z?"im Ziel":(ist<=o?"über Ziel":"über Normal")):"";
+    w.push([xn(isoWeek(r.date)),xn(xlSerial(r.date),DF),xn(o,M3),xn(z,M3),xn(Math.round(r.wz),M3),has?xn(ist,M3):"",
+      xf('IF(AND(ISNUMBER(F'+n+'),ISNUMBER(F'+(n-1)+')),F'+n+'-F'+(n-1)+',"")',wk,M3),
+      xf('IF(ISNUMBER(F'+n+'),F'+n+'-D'+n+',"")',dev,'+#,##0;-#,##0;0'),
+      xf('IF(ISNUMBER(F'+n+'),(F'+n+'-D'+n+')/(D'+n+'-$D$2),"")',pct,'+0.0%;-0.0%;0.0%'),
+      xf('IF(ISNUMBER(F'+n+'),IF(F'+n+'<=D'+n+',"im Ziel",IF(F'+n+'<=C'+n+',"über Ziel","über Normal")),"")',st)]);
+    prev=has?ist:null;
+  });
+  var wsW=sheetFrom(w,[5,12,20,18,16,20,16,22,22,13]);
+  wsW["!autofilter"]={ref:"A1:J"+w.length};
+  // Maßnahmen
+  var m=[[xs("Ausgewählt"),xs("Gruppe"),xs("Maßnahme"),xs("Was konkret tun"),xs("Bereich"),xs("Ersparnis im Bereich"),xs("Ersparnis gesamt"),xs("kWh pro Jahr"),xs("€ pro Jahr"),xs("Kosten"),xs("Quelle")]];
+  MEASURES.forEach(function(x){
+    var share=(x.a==="h"?HEAT_YEAR:BASE_YEAR)/ANNUAL,kwh=(x.a==="h"?HEAT_KWH:BASE_KWH)*x.p/100;
+    var g=GROUPS.filter(function(G){return G.id===x.g;})[0];
+    m.push([xs(state.sel.has(x.id)?"ja":"nein"),xs(g?g.t:""),xs(x.t),xs(x.how),xs(x.a==="h"?"Heizung":"Warmwasser"),xn(x.p/100,"0%"),xn(x.p/100*share,PCT),xn(Math.round(kwh),KW),xn(Math.round(kwh*AP),EUR),xs(x.cost),xs(x.src)]);
+  });
+  var all=factors(new Set(MEASURES.map(function(x){return x.id;})));
+  m.push([]);
+  [["Dein Ziel (ausgewählt)",f],["Alles umgesetzt",all]].forEach(function(p){var k=HEAT_KWH*p[1].sh+BASE_KWH*p[1].sw;m.push(["",xs(p[0]),xs("Maßnahmen nacheinander verrechnet, nicht addiert"),"","","",xn(p[1].total,PCT),xn(Math.round(k),KW),xn(Math.round(k*AP),EUR)]);});
+  var wsM=sheetFrom(m,[11,20,40,70,12,18,16,13,11,26,48]);
+  // Übersicht
+  var ohneKwh=ANNUAL*KWH,planKwh=(ANNUAL-(HEAT_YEAR*f.sh+BASE_YEAR*f.sw))*KWH,ohneEur=ohneKwh*AP+GP_YEAR,planEur=planKwh*AP+GP_YEAR;
+  var last=null;rows.forEach(function(r){if(typeof state.readings[r.d]==="number")last=r;});
+  var u=[[xs("Gas-Sparplan 2026/27")],[xs("Exportiert am"),xn(xlSerial(new Date()),DF)],[],
+    [xs("Tarif"),xs("Erenja Erdgas Fix, 1.12.2026 – 30.11.2027")],
+    [xs("Arbeitspreis (ct/kWh)"),xn(13.02,"0.00")],[xs("Grundpreis (€/Monat)"),xn(12.42,'#,##0.00 "€"')],
+    [xs("Umrechnung (kWh pro m³)"),xn(Math.round(KWH*1000)/1000,"0.000")],[],
+    [xs("Normalverbrauch (kWh/Jahr)"),xn(Math.round(ohneKwh),KW)],[xs("Kosten ohne Sparen (€/Jahr)"),xn(Math.round(ohneEur),EUR)],
+    [xs("Sparziel (ausgewählte Maßnahmen)"),xn(f.total,PCT)],[xs("Verbrauch mit Plan (kWh/Jahr)"),xn(Math.round(planKwh),KW)],
+    [xs("Kosten mit Plan (€/Jahr)"),xn(Math.round(planEur),EUR)],[xs("Ersparnis (€/Jahr)"),xn(Math.round(ohneEur-planEur),EUR)],
+    [xs("Passender Abschlag (€/Monat)"),xn(Math.ceil(planEur/12/5)*5,EUR)],[xs("Aktueller Abschlag (€/Monat)"),xn(ABSCHLAG,EUR)],[]];
+  if(last){var li=state.readings[last.d];u.push([xs("Letzte Ablesung"),xn(xlSerial(last.date),DF)],[xs("Zählerstand (m³)"),xn(li,M3)],[xs("Ziel an diesem Tag (m³)"),xn(Math.round(last.ziel),M3)],[xs("Abweichung zum Ziel (m³)"),xn(Math.round(li-last.ziel),'+#,##0;-#,##0;0')],[xs("Bisher gespart ggü. normal (€)"),xn(Math.round((last.ohne-li)*KWH*AP),'+#,##0 "€";-#,##0 "€";0 "€"')]);}
+  else u.push([xs("Letzte Ablesung"),xs("noch keine eingetragen")]);
+  var wsU=sheetFrom(u,[34,42]);
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,wsU,"Übersicht");
+  XLSX.utils.book_append_sheet(wb,wsW,"Wochenplan");
+  XLSX.utils.book_append_sheet(wb,wsM,"Maßnahmen");
+  return wb;
+}
+function exportXlsx(){
+  var msg=document.getElementById("exportMsg"),btn=document.getElementById("btnXlsx");
+  if(typeof XLSX==="undefined"){msg.textContent="Der Excel-Export konnte nicht geladen werden. Prüfe die Internetverbindung und lade die Seite neu.";return;}
+  var buf;try{buf=XLSX.write(buildWorkbook(),{bookType:"xlsx",type:"array",compression:true});}catch(e){msg.textContent="Die Excel-Datei konnte nicht erstellt werden.";return;}
+  var name="Gas-Sparplan_"+todayIso()+".xlsx";
+  var blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  msg.textContent="";
+  if(window.claude&&typeof window.claude.use==="function"){
+    btn.disabled=true;
+    window.claude.use("downloads").then(function(dl){
+      if(!dl){msg.textContent="Der Excel-Export ist in dieser Ansicht nicht verfügbar.";return;}
+      return dl.save({filename:name,data:blob}).then(function(r){msg.textContent=(r&&r.status==="delivered")?"":"Excel-Datei gespeichert.";},function(e){
+        var c=e&&e.code;
+        if(c==="declined")msg.textContent="";
+        else if(c==="rate_limited")msg.textContent="Es ist schon ein Speichern-Dialog offen. Kurz warten und noch einmal versuchen.";
+        else msg.textContent="Der Excel-Export ist in dieser Ansicht nicht verfügbar.";
+      });
+    },function(){msg.textContent="Der Excel-Export ist in dieser Ansicht nicht verfügbar.";}).then(function(){btn.disabled=false;});
+    return;
+  }
+  var url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},4000);
+  msg.textContent="Excel-Datei wird heruntergeladen.";
+}
+
+/* ---------- storage ---------- */
+var LS_R="gasplan.readings",LS_M="gasplan.measures";
+function lsGet(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function setSaveState(mode,text){var s=document.getElementById("saveState");s.className="save-state"+(mode?" "+mode:"");s.textContent=text;}
+var chains={};
+function queue(key,fn){chains[key]=(chains[key]||Promise.resolve()).then(fn).catch(function(e){onWriteError(e);});return chains[key];}
+function onWriteError(e){var c=e&&e.code;if(c==="quota_exceeded")setSaveState("local","Speicher voll. Neue Werte bleiben nur in diesem Browser.");else setSaveState("local","Speichern gerade nicht möglich. Werte bleiben vorerst in diesem Browser.");}
+function persistReading(d,v){
+  var all=lsGet(LS_R)||{};if(v==null)delete all[d];else all[d]=v;lsSet(LS_R,all);
+  if(store.db){queue("r-"+d,function(){var ref=store.db.collection("readings").doc(d);return v==null?ref.delete():ref.set({stand:v,updated:new Date().toISOString()});}).then(function(){if(store.mode==="db")setSaveState("ok","Ablesungen werden dauerhaft gespeichert");});}
+}
+var mTimer=null;
+function saveMeasures(){
+  var arr=Array.from(state.sel);lsSet(LS_M,arr);
+  if(!store.db)return;clearTimeout(mTimer);
+  mTimer=setTimeout(function(){queue("settings",function(){return store.db.doc("settings/plan").set({measures:arr,updated:new Date().toISOString()});});},500);
+}
+function useLocal(){
+  store.mode="local";
+  var r=lsGet(LS_R);if(r&&typeof r==="object")state.readings=r;
+  var m=lsGet(LS_M);if(Array.isArray(m))state.sel=new Set(m.filter(function(id){return MEASURES.some(function(x){return x.id===id;});}));
+  var standalone=!(window.claude&&typeof window.claude.use==="function");
+  setSaveState("local",standalone?"Gespeichert in diesem Browser. Regelmäßig nach Excel exportieren, dann hast du eine Sicherung.":"Ablesungen werden nur in diesem Browser gespeichert");renderAll();
+}
+function connect(){
+  if(!window.claude||typeof window.claude.use!=="function"){useLocal();return;}
+  window.claude.use("db").then(function(db){
+    if(!db){useLocal();return;}
+    store.db=db;store.mode="db";
+    var timer=setTimeout(function(){setSaveState("local","Gespeicherte Ablesungen gerade nicht erreichbar. Neue Werte werden gespeichert, sobald die Verbindung steht.");},10000);
+    db.collection("readings").onSnapshot(function(snap){
+      if(!snap.metadata.fromCache){clearTimeout(timer);setSaveState("ok","Ablesungen werden dauerhaft gespeichert");}
+      var r={};snap.docs.forEach(function(d){var v=d.data();if(v&&typeof v.stand==="number"&&isFinite(v.stand))r[d.id]=v.stand;});
+      state.readings=r;renderAll();
+    },function(e){clearTimeout(timer);store.db=null;useLocal();});
+    db.doc("settings/plan").onSnapshot(function(s){
+      if(s.exists){var v=s.data();if(v&&Array.isArray(v.measures)){state.sel=new Set(v.measures.filter(function(id){return MEASURES.some(function(x){return x.id===id;});}));renderAll();}}
+    },function(){});
+  },function(){useLocal();});
+}
+
+buildMeasures();buildTable();renderAll();connect();
+document.getElementById("btnXlsx").addEventListener("click",exportXlsx);
+var rt=null;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(function(){renderChart(lastRows);},120);});
+if(window.matchMedia){try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",function(){renderChart(lastRows);});}catch(e){}}
+new MutationObserver(function(){renderChart(lastRows);}).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+})();
+</script>
+</body>
+</html>
